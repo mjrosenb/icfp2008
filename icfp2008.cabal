@@ -21,7 +21,7 @@ executable icfp08
   other-modules:       Parser
                        Message
   -- other-extensions:
-  build-depends:       base >=4.1 && <4.15,
+  build-depends:       base >=4.1 && <4.20,
                        bytestring,
                        network,
                        text,

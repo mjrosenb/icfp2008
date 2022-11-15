@@ -29,8 +29,7 @@ parseStatic = do
 parseObject = (char 'b' >> (parseStatic >>= (return . Boulder))) <|>
               (char 'c' >> (parseStatic >>= (return . Crater))) <|>
               (char 'h' >> (parseStatic >>= (return . Home)))  <|>
-              (do char 'm'
-                  space
+              (do char' 'm'
                   x <- double'
                   y <- double'
                   dir <- double'
@@ -76,7 +75,7 @@ parseTel = do
   vehicleY <- double'
   vehicleDir <- double'
   vehicleSpeed <- double'
-  objects <- sepBy  parseObject (char ' ')
+  objects <- sepBy parseObject (char ' ')
   space
   char ';'
   return $ T  timeStamp vehicleCtrl vehicleX vehicleY vehicleDir vehicleSpeed objects
