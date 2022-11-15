@@ -2,7 +2,7 @@
 -- Echo client program
 module Main (main) where
 import Data.Char
-
+import Data.Attoparsec.Text hiding (I)
 import Data.Text.Encoding
 import qualified Control.Exception as E
 import qualified Data.Text as T
@@ -13,28 +13,26 @@ import Message
 import Parser
 
 
-parseMsg = parseTel <|> parseInit
 drive :: Socket -> IMsg -> IO ()
-drive s =  do
-  msg <- decodeLatin1 msgBS <$> recv s 4096
+drive s init =  do
+  msg <- decodeLatin1 <$> recv s 4096
   TIO.putStr $ "Received: <<" <> msg <> ">>"
   case parseOnly parseTel msg of
     Right tel -> print tel
-    Left err -> putStrLn
-  print imsg
-  drive s
+    Left err -> putStrLn err
+  drive s init
     
 main :: IO ()
 main =
   runTCPClient "172.25.128.1" "17676" $ \socket -> do
-    msgTet <- decodeLatin1 <$> recv socket 1024 
+    msgText <- decodeLatin1 <$> recv socket 1024 
     TIO.putStr $ "Received Init: " <> msgText
     
     case  parseOnly parseInit msgText
       of Right d -> do
            print d
            drive socket d
-         Left err -> TIO.putStr $ "Failed to parse initialization message: " <> err
+         Left err -> putStr $ "Failed to parse initialization message: " <> err
     
 -- from the "network-run" package.
 runTCPClient :: HostName -> ServiceName -> (Socket -> IO a) -> IO a
