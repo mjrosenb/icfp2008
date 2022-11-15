@@ -11,7 +11,7 @@ import Network.Socket
 import Network.Socket.ByteString (recv, sendAll)
 import Message
 import Parser
-
+import System.Environment
 
 drive :: Socket -> IMsg -> IO ()
 drive s init =  do
@@ -19,12 +19,16 @@ drive s init =  do
   TIO.putStr $ "Received: <<" <> msg <> ">>"
   case parseOnly parseTel msg of
     Right tel -> print tel
-    Left err -> putStrLn err
+    Left err -> putStrLn $ "Couldn't parse telemetry: " <> err
   drive s init
     
 main :: IO ()
-main =
-  runTCPClient "172.25.128.1" "17676" $ \socket -> do
+main = do
+  args <- getArgs
+  let (host, port) = case args of [] -> ("172.25.128.1", "17676")
+                                  [ip] -> (ip, "17676")
+                                  ip:port:_ -> (ip, port)
+  runTCPClient  host port $ \socket-> do
     msgText <- decodeLatin1 <$> recv socket 1024 
     TIO.putStr $ "Received Init: " <> msgText
     

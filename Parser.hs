@@ -20,15 +20,16 @@ parseVehicleCtrl = do -- the vehicle control field is two characters, without sp
   turn <- parseTurning
   return $ VC accel turn
 
+
 parseStatic = do
   x <-double'
   y <- double'
   r <- double -- don't parse the terminal space
   return $ S x y r
   
-parseObject = (char 'b' >> (parseStatic >>= (return . Boulder))) <|>
-              (char 'c' >> (parseStatic >>= (return . Crater))) <|>
-              (char 'h' >> (parseStatic >>= (return . Home)))  <|>
+parseObject = (char' 'b' >> (parseStatic >>= (return . Boulder))) <|>
+              (char' 'c' >> (parseStatic >>= (return . Crater))) <|>
+              (char' 'h' >> (parseStatic >>= (return . Home)))  <|>
               (do char' 'm'
                   x <- double'
                   y <- double'
@@ -75,7 +76,7 @@ parseTel = do
   vehicleY <- double'
   vehicleDir <- double'
   vehicleSpeed <- double'
-  objects <- sepBy parseObject (char ' ')
+  objects <- sepBy parseObject space
   space
   char ';'
   return $ T  timeStamp vehicleCtrl vehicleX vehicleY vehicleDir vehicleSpeed objects
