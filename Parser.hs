@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Parser(parseInit, parseTel) where
+module Parser(parseInit, parseTel, parseMessage) where
 import Data.Attoparsec.Text hiding (I)
 import Control.Applicative
 import Message
@@ -80,4 +80,38 @@ parseTel = do
   char ';'
   return $ T  timeStamp vehicleCtrl vehicleX vehicleY vehicleDir vehicleSpeed objects
 
--- TODO: Parse the ending messages
+parseStatus = do
+  char' 'B'
+  timeStamp <- decimal'
+  char ';'
+  return $ B timeStamp
+parseCrash = do
+  char' 'C'
+  timeStamp <- decimal'
+  char ';'
+  return $ C timeStamp
+
+parseKilled = do
+  char' 'K'
+  timeStamp <- decimal'
+  char ';'
+  return $ K timeStamp
+
+parseSuccess = do
+  char' 'S'
+  timeStamp <- decimal'
+  char ';'
+  return $ W timeStamp
+
+parseEnd = do
+  char' 'E'
+  timeStamp <- decimal'
+  score <- decimal'
+  char ';'
+  return $ E timeStamp score
+  
+parseEnds = do
+  choice [parseEnd, parseSuccess, parseKilled, parseCrash]
+
+parseMessage = do
+  choice [End <$> parseEnds, Status <$> parseStatus, Telemetry <$> parseTel]

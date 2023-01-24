@@ -44,17 +44,19 @@ communicate :: Socket -> IMsg -> DriveState -> IO ()
 communicate s init ds =  do
   msg <- decodeLatin1 <$> recv s 4096
   TIO.putStr $ "Received: <<" <> msg <> ">>"
-  ds' <- case parseOnly parseTel msg of
-    Right tel -> do print tel
-                    let (cmd, ds') = runState (drive tel) ds
-                        vX = _vehicleX tel
-                        vY = _vehicleY tel
-                        vX' = tel ^. vehicleX
-                        vY' = tel ^. vehicleY
-                    print ((vX, vY) :: (Double, Double))
-                    print ((vX', vY') :: (Double, Double))
-                    sendAll s (showCommandBS cmd)
-                    return ds'
+  ds' <- case parseOnly parseMessage msg of
+    Right (Telemetry tel) -> do print tel
+                                let (cmd, ds') = runState (drive tel) ds
+                                    vX = _vehicleX tel
+                                    vY = _vehicleY tel
+                                    vX' = tel ^. vehicleX
+                                    vY' = tel ^. vehicleY
+                                print ((vX, vY) :: (Double, Double))
+                                print ((vX', vY') :: (Double, Double))
+                                sendAll s (showCommandBS cmd)
+                                return ds' 
+    Right x -> do putStrLn $ "Non-telemetry message: " ++ show x
+                  return ds
     Left err -> do putStrLn $ "Couldn't parse telemetry: " <> err
                    return ds
   communicate s init ds'

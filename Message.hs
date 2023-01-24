@@ -22,6 +22,7 @@ data IMsg = I { _dx, _dy :: Double
               , _maxSpeed, _maxTurn, _maxHardTurn :: Double
               }
           deriving (Show, Eq, Ord)
+-- A Telemetry message
 data TMsg = T { _timeStamp :: Int
               , _vehicleCtrl :: VehicleControl
               , _vehicleX :: Double
@@ -30,7 +31,23 @@ data TMsg = T { _timeStamp :: Int
               , _vehicleSpeed :: Double
               , _objects :: [Object]
               }
+          deriving (Show, Eq, Ord)
 
+-- A status message
+data SMsg = B Int
+  deriving (Show, Eq, Ord)
+
+-- An ending message
+data EMsg = C Int -- Crash
+          | K Int
+          | W Int
+          | E {_time :: Int, _score :: Int}
+  deriving (Show, Eq, Ord)
+
+
+data Msg = Telemetry TMsg
+         | Status SMsg
+         | End EMsg
           deriving (Show, Eq, Ord)
 
 data DriveAccel = Accel | Brake deriving (Show, Eq, Ord)
