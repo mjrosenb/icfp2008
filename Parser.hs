@@ -24,7 +24,7 @@ parseVehicleCtrl = do -- the vehicle control field is two characters, without sp
 parseStatic = do
   x <-double'
   y <- double'
-  r <- double -- don't parse the terminal space
+  r <- double'
   return $ S x y r
   
 parseObject = (char' 'b' >> (parseStatic >>= (return . Boulder))) <|>
@@ -34,7 +34,7 @@ parseObject = (char' 'b' >> (parseStatic >>= (return . Boulder))) <|>
                   x <- double'
                   y <- double'
                   dir <- double'
-                  speed <- double -- don't eat the terminal space
+                  speed <- double' 
                   let static = S x y 0.4 -- martians always have a radius of 0.4
                   return $ Martian static dir speed
               )
@@ -76,8 +76,7 @@ parseTel = do
   vehicleY <- double'
   vehicleDir <- double'
   vehicleSpeed <- double'
-  objects <- sepBy parseObject space
-  space
+  objects <- many' parseObject
   char ';'
   return $ T  timeStamp vehicleCtrl vehicleX vehicleY vehicleDir vehicleSpeed objects
 

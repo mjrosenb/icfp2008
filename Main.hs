@@ -16,26 +16,30 @@ import System.Environment
 import Control.Monad.State.Lazy
 import State
 import Control.Lens
-
-driveSpiral :: TMsg -> State SpiralingSt DriveCommand
+import Data.Monoid
+driveSpiral :: TMsg -> State SpiralingSt (First DriveCommand)
 driveSpiral telemetry =  do
   sc <- straightCount <+= 1
   maxC <- use maxStraight
   if sc == maxC then
-    return DC {_accel = Just Accel, _turn = Just LeftTurn}
+    return $ first DC {_accel = Just Accel, _turn = Just LeftTurn}
     else if sc == maxC + 4 then do
     maxStraight += 3
     straightCount .= 0
-    return DC {_accel = Just Accel, _turn = Just RightTurn}
+    return $ first DC {_accel = Just Accel, _turn = Just RightTurn}
   else
-    return DC {_accel = Just Accel, _turn = Nothing}
-
+    return $ first DC {_accel = Just Accel, _turn = Nothing}
+first :: a -> First a
+first x = First (Just x)
 drive :: TMsg -> State DriveState DriveCommand
 drive telemetry = do
   st <- use smState
-  let sp = use (smState . _Spiraling . to Just) :: State DriveState (Maybe SpiralingSt)
---  sp <- zoom (smState . _Spiraling) (driveSpiral telemetry)
-  return undefined
+  -- sp <- preuse (smState . _Spiraling) :: State DriveState (Maybe SpiralingSt)
+  sp <- zoom (smState . _Spiraling) (driveSpiral telemetry) -- :: First DriveCommand
+  
+  case getFirst sp of
+    Just command -> return command
+    Nothing -> return undefined
 communicate :: Socket -> IMsg -> DriveState -> IO ()
 communicate s init ds =  do
   msg <- decodeLatin1 <$> recv s 4096
