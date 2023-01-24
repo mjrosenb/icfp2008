@@ -2,6 +2,7 @@
 -- Echo client program
 module Main (main) where
 import Data.Char
+import Data.Maybe
 import Data.Attoparsec.Text hiding (I)
 import Data.Text.Encoding
 import qualified Control.Exception as E
@@ -12,15 +13,47 @@ import Network.Socket.ByteString (recv, sendAll)
 import Message
 import Parser
 import System.Environment
+import Control.Monad.State.Lazy
+import State
+import Control.Lens
 
-drive :: Socket -> IMsg -> IO ()
-drive s init =  do
+driveSpiral :: TMsg -> State SpiralingSt DriveCommand
+driveSpiral telemetry =  do
+  sc <- straightCount <+= 1
+  maxC <- use maxStraight
+  if sc == maxC then
+    return DC {_accel = Just Accel, _turn = Just LeftTurn}
+    else if sc == maxC + 4 then do
+    maxStraight += 3
+    straightCount .= 0
+    return DC {_accel = Just Accel, _turn = Just RightTurn}
+  else
+    return DC {_accel = Just Accel, _turn = Nothing}
+
+drive :: TMsg -> State DriveState DriveCommand
+drive telemetry = do
+  st <- use smState
+  let sp = use (smState . _Spiraling . to Just) :: State DriveState (Maybe SpiralingSt)
+--  sp <- zoom (smState . _Spiraling) (driveSpiral telemetry)
+  return undefined
+communicate :: Socket -> IMsg -> DriveState -> IO ()
+communicate s init ds =  do
   msg <- decodeLatin1 <$> recv s 4096
   TIO.putStr $ "Received: <<" <> msg <> ">>"
-  case parseOnly parseTel msg of
-    Right tel -> print tel
-    Left err -> putStrLn $ "Couldn't parse telemetry: " <> err
-  drive s init
+  ds' <- case parseOnly parseTel msg of
+    Right tel -> do print tel
+                    let (cmd, ds') = runState (drive tel) ds
+                        vX = _vehicleX tel
+                        vY = _vehicleY tel
+                        vX' = tel ^. vehicleX
+                        vY' = tel ^. vehicleY
+                    print ((vX, vY) :: (Double, Double))
+                    print ((vX', vY') :: (Double, Double))
+                    sendAll s (showCommandBS cmd)
+                    return ds'
+    Left err -> do putStrLn $ "Couldn't parse telemetry: " <> err
+                   return ds
+  communicate s init ds'
     
 main :: IO ()
 main = do
@@ -35,7 +68,7 @@ main = do
     case  parseOnly parseInit msgText
       of Right d -> do
            print d
-           drive socket d
+           communicate socket d initState
          Left err -> putStr $ "Failed to parse initialization message: " <> err
     
 -- from the "network-run" package.

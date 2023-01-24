@@ -1,6 +1,8 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Message  where
 import Control.Lens
+import Data.ByteString
 -- Enums for various enum-like fields
 data Accel = Accelerating | Braking | Rolling deriving (Show, Eq, Ord)
 data Turning = NormLeft | HardLeft | Straight | NormRight | HardRight deriving (Show, Eq, Ord)
@@ -31,7 +33,24 @@ data TMsg = T { _timeStamp :: Int
 
           deriving (Show, Eq, Ord)
 
+data DriveAccel = Accel | Brake deriving (Show, Eq, Ord)
+data DriveTurn = LeftTurn | RightTurn deriving (Show, Eq, Ord)
+data DriveCommand = DC { _accel :: Maybe DriveAccel, _turn :: Maybe DriveTurn }
 makeLenses ''Static
 makeLenses ''Object
 makeLenses ''IMsg
 makeLenses ''TMsg
+makeLenses ''DriveCommand
+
+showAccelBS :: DriveAccel -> ByteString
+showAccelBS Accel = "a"
+showAccelBS Brake = "b"
+
+showTurnBS :: DriveTurn -> ByteString
+showTurnBS LeftTurn = "l"
+showTurnBS RightTurn = "r"
+
+showCommandBS DC {_accel = accel, _turn = turn} =
+  maybe "" showAccelBS accel <>
+  maybe ""  showTurnBS turn <>
+  ";"
