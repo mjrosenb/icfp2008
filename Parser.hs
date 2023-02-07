@@ -3,6 +3,7 @@ module Parser(parseInit, parseTel, parseMessage) where
 import Data.Attoparsec.Text hiding (I)
 import Control.Applicative
 import Message
+import Point
 parseAccel = 
   (char 'a' >> return Accelerating) <|>
   (char 'b' >> return Braking) <|>
@@ -25,7 +26,7 @@ parseStatic = do
   x <-double'
   y <- double'
   r <- double'
-  return $ S x y r
+  return $ S (P x y) r
   
 parseObject = (char' 'b' >> (parseStatic >>= (return . Boulder))) <|>
               (char' 'c' >> (parseStatic >>= (return . Crater))) <|>
@@ -35,7 +36,7 @@ parseObject = (char' 'b' >> (parseStatic >>= (return . Boulder))) <|>
                   y <- double'
                   dir <- double'
                   speed <- double' 
-                  let static = S x y 0.4 -- martians always have a radius of 0.4
+                  let static = S (P x y) 0.4 -- martians always have a radius of 0.4
                   return $ Martian static dir speed
               )
 
@@ -62,7 +63,7 @@ parseInit = do
   maxT <- double'
   maxHT <- double'
   string ";"
-  return I {_dx = x, _dy = y,
+  return I {_size = P x y,
             _timeLimit = tl,
             _minSensor = minSen, _maxSensor = maxSen,
             _maxSpeed = maxSp, _maxTurn = maxT, _maxHardTurn = maxHT}
@@ -78,7 +79,7 @@ parseTel = do
   vehicleSpeed <- double'
   objects <- many' parseObject
   char ';'
-  return $ T  timeStamp vehicleCtrl vehicleX vehicleY vehicleDir vehicleSpeed objects
+  return $ T  timeStamp vehicleCtrl (P vehicleX vehicleY) vehicleDir vehicleSpeed objects
 
 parseStatus = do
   char' 'B'

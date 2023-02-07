@@ -2,27 +2,27 @@
 module State where
 import qualified Message as Msg
 import qualified Data.Set as S
+import qualified Data.Array as A
 import Control.Lens
-data SpiralingSt = SpiralingSt { _straightCount :: Int
-                               , _maxStraight :: Int
-                               } deriving (Show, Eq)
-data EndInSightSt = EndInSightSt { _endX :: Double
-                                 , _endY :: Double
-                                 } deriving (Show, Eq)
-data SMState = Spiraling  SpiralingSt
-             | EndInSight EndInSightSt deriving (Show, Eq)
+import Point
 
+data DStarStatus =
+    CLOSED
+  | OPEN
+  | NEW
+  | RAISE
+  | LOWER
+  deriving (Show, Eq)
 
-
+type DStarState = A.Array GridPoint (DStarStatus, Maybe GridPoint)
 data DriveState = DriveState { _objects :: S.Set Msg.Object
-                             , _smState :: SMState
+                             , _dStarState :: DStarState
                              } deriving (Show, Eq)
 makeLenses ''DriveState
-makeLenses ''SpiralingSt
-makeLenses ''EndInSightSt
-makePrisms ''SMState
-initState = DriveState { _objects = S.empty
-                       , _smState = Spiraling SpiralingSt { _straightCount = 0
-                                                          , _maxStraight = 4
-                                                          }
-                       }
+initState P {_x=x, _y=y} =
+  let hx = ceiling (x / 2)
+      hy = ceiling (y / 2)
+  in 
+    DriveState { _objects = S.empty
+               , _dStarState = A.listArray (P (negate hx) (negate hy), P hx hy) (repeat (NEW, Nothing))
+               }

@@ -10,37 +10,25 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import Network.Socket
 import Network.Socket.ByteString (recv, sendAll)
-import Message
-import Parser
 import System.Environment
 import Control.Monad.State.Lazy
-import State
 import Control.Lens
 import Data.Monoid
 import Data.List
 
-driveSpiral :: TMsg -> State SpiralingSt (First DriveCommand)
-driveSpiral telemetry =  do
-  sc <- straightCount <+= 1
-  maxC <- use maxStraight
-  if sc == maxC then
-    return $ first DC {_accel = Just Accel, _turn = Just LeftTurn}
-    else if sc == maxC + 4 then do
-    maxStraight += 1
-    straightCount .= 0
-    return $ first DC {_accel = Just Accel, _turn = Just RightTurn}
-  else
-    return $ first DC {_accel = Just Accel, _turn = Nothing}
-
+import Message
+import Parser
+import State
+import Point
 first :: a -> First a
 first x = First (Just x)
 
 drive :: TMsg -> State DriveState DriveCommand
 drive telemetry = do
-  let dx = telemetry ^. vehicleX
-      dy = telemetry ^. vehicleY
+  let dx = telemetry ^. vehiclePos . x
+      dy = telemetry ^. vehiclePos . y
       angle = telemetry ^. vehicleDir . to floor
-      radToGoal = negate $ atan2 (dx) (dy)
+      radToGoal =  atan2 (negate dy) (negate dx)
       degToGoal = floor (radToGoal * 180 / pi)
       fastestTurn = minimumBy (\x y -> compare (abs x) (abs y) ) [angle - degToGoal, angle - degToGoal - 360]
       direction = if fastestTurn < 0
@@ -49,27 +37,16 @@ drive telemetry = do
                        then Just RightTurn
                        else Nothing
   return DC {_accel =Just Accel, _turn = direction}
-  -- st <- use smState
-  -- sp <- preuse (smState . _Spiraling) :: State DriveState (Maybe SpiralingSt)
-  -- sp <- zoom (smState . _Spiraling) (driveSpiral telemetry) -- :: First DriveCommand
-  
-  -- case getFirst sp of
-  -- Just command -> return command
-  -- Nothing -> return undefined
+
 
 communicate :: Socket -> IMsg -> DriveState -> IO ()
 communicate s init ds =  do
   msg <- decodeLatin1 <$> recv s 4096
---  TIO.putStr $ "Received: <<" <> msg <> ">>"
   ds' <- case parseOnly parseMessage msg of
     Right (Telemetry tel) -> do print tel
                                 let (cmd, ds') = runState (drive tel) ds
-                                    vX = _vehicleX tel
-                                    vY = _vehicleY tel
-                                    vX' = tel ^. vehicleX
-                                    vY' = tel ^. vehicleY
-                                --print ((vX, vY) :: (Double, Double))
-                                --print ((vX', vY') :: (Double, Double))
+                                    vX = tel ^. vehiclePos . x
+                                    vY = tel ^. vehiclePos . y
                                 print cmd
                                 print ds'
                                 sendAll s (showCommandBS cmd)
@@ -93,7 +70,7 @@ main = do
     case  parseOnly parseInit msgText
       of Right d -> do
            print d
-           communicate socket d initState
+           communicate socket d (initState (d ^. size))
          Left err -> putStr $ "Failed to parse initialization message: " <> err
     
 -- from the "network-run" package.
