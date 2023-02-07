@@ -52,7 +52,7 @@ data Msg = Telemetry TMsg
 
 data DriveAccel = Accel | Brake deriving (Show, Eq, Ord)
 data DriveTurn = LeftTurn | RightTurn deriving (Show, Eq, Ord)
-data DriveCommand = DC { _accel :: Maybe DriveAccel, _turn :: Maybe DriveTurn }
+data DriveCommand = DC { _accel :: Maybe DriveAccel, _turn :: Maybe DriveTurn } deriving (Show, Eq, Ord)
 makeLenses ''Static
 makeLenses ''Object
 makeLenses ''IMsg

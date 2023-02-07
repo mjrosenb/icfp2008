@@ -23,6 +23,6 @@ makeLenses ''EndInSightSt
 makePrisms ''SMState
 initState = DriveState { _objects = S.empty
                        , _smState = Spiraling SpiralingSt { _straightCount = 0
-                                                          , _maxStraight = 10
+                                                          , _maxStraight = 4
                                                           }
                        }

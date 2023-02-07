@@ -17,6 +17,8 @@ import Control.Monad.State.Lazy
 import State
 import Control.Lens
 import Data.Monoid
+import Data.List
+
 driveSpiral :: TMsg -> State SpiralingSt (First DriveCommand)
 driveSpiral telemetry =  do
   sc <- straightCount <+= 1
@@ -24,26 +26,41 @@ driveSpiral telemetry =  do
   if sc == maxC then
     return $ first DC {_accel = Just Accel, _turn = Just LeftTurn}
     else if sc == maxC + 4 then do
-    maxStraight += 3
+    maxStraight += 1
     straightCount .= 0
     return $ first DC {_accel = Just Accel, _turn = Just RightTurn}
   else
     return $ first DC {_accel = Just Accel, _turn = Nothing}
+
 first :: a -> First a
 first x = First (Just x)
+
 drive :: TMsg -> State DriveState DriveCommand
 drive telemetry = do
-  st <- use smState
+  let dx = telemetry ^. vehicleX
+      dy = telemetry ^. vehicleY
+      angle = telemetry ^. vehicleDir . to floor
+      radToGoal = negate $ atan2 (dx) (dy)
+      degToGoal = floor (radToGoal * 180 / pi)
+      fastestTurn = minimumBy (\x y -> compare (abs x) (abs y) ) [angle - degToGoal, angle - degToGoal - 360]
+      direction = if fastestTurn < 0
+                  then Just LeftTurn
+                  else if fastestTurn > 0
+                       then Just RightTurn
+                       else Nothing
+  return DC {_accel =Just Accel, _turn = direction}
+  -- st <- use smState
   -- sp <- preuse (smState . _Spiraling) :: State DriveState (Maybe SpiralingSt)
-  sp <- zoom (smState . _Spiraling) (driveSpiral telemetry) -- :: First DriveCommand
+  -- sp <- zoom (smState . _Spiraling) (driveSpiral telemetry) -- :: First DriveCommand
   
-  case getFirst sp of
-    Just command -> return command
-    Nothing -> return undefined
+  -- case getFirst sp of
+  -- Just command -> return command
+  -- Nothing -> return undefined
+
 communicate :: Socket -> IMsg -> DriveState -> IO ()
 communicate s init ds =  do
   msg <- decodeLatin1 <$> recv s 4096
-  TIO.putStr $ "Received: <<" <> msg <> ">>"
+--  TIO.putStr $ "Received: <<" <> msg <> ">>"
   ds' <- case parseOnly parseMessage msg of
     Right (Telemetry tel) -> do print tel
                                 let (cmd, ds') = runState (drive tel) ds
@@ -51,8 +68,10 @@ communicate s init ds =  do
                                     vY = _vehicleY tel
                                     vX' = tel ^. vehicleX
                                     vY' = tel ^. vehicleY
-                                print ((vX, vY) :: (Double, Double))
-                                print ((vX', vY') :: (Double, Double))
+                                --print ((vX, vY) :: (Double, Double))
+                                --print ((vX', vY') :: (Double, Double))
+                                print cmd
+                                print ds'
                                 sendAll s (showCommandBS cmd)
                                 return ds' 
     Right x -> do putStrLn $ "Non-telemetry message: " ++ show x
