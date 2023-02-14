@@ -14,7 +14,11 @@ data DStarStatus =
   | LOWER
   deriving (Show, Eq)
 
-type DStarState = A.Array GridPoint (DStarStatus, Maybe GridPoint)
+data DStarCell = DSC { _status :: DStarStatus
+                     , _nextCellInPath :: Maybe GridPoint
+                     } deriving (Show, Eq)
+
+type DStarState = A.Array GridPoint DStarCell
 data DriveState = DriveState { _objects :: S.Set Msg.Object
                              , _dStarState :: DStarState
                              } deriving (Show, Eq)
@@ -24,5 +28,7 @@ initState P {_x=x, _y=y} =
       hy = ceiling (y / 2)
   in 
     DriveState { _objects = S.empty
-               , _dStarState = A.listArray (P (negate hx) (negate hy), P hx hy) (repeat (NEW, Nothing))
+               , _dStarState = A.listArray
+                               (P (negate hx) (negate hy), P hx hy)
+                               (repeat DSC {_status = NEW, _nextCellInPath = Nothing })
                }
