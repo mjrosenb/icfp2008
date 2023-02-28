@@ -20,11 +20,15 @@ import Message
 import Parser
 import State
 import Point
+
 first :: a -> First a
 first x = First (Just x)
 
+
+
 drive :: TMsg -> State DriveState DriveCommand
 drive telemetry = do
+  addObjects (telemetry ^. objects)
   let dx = telemetry ^. vehiclePos . x
       dy = telemetry ^. vehiclePos . y
       angle = telemetry ^. vehicleDir . to floor
@@ -43,12 +47,14 @@ communicate :: Socket -> IMsg -> DriveState -> IO ()
 communicate s init ds =  do
   msg <- decodeLatin1 <$> recv s 4096
   ds' <- case parseOnly parseMessage msg of
-    Right (Telemetry tel) -> do print tel
+    Right (Telemetry tel) -> do -- print tel
                                 let (cmd, ds') = runState (drive tel) ds
+                                    p = floor' (tel ^. vehiclePos)
                                     vX = tel ^. vehiclePos . x
                                     vY = tel ^. vehiclePos . y
                                 print cmd
-                                print ds'
+                                -- print ds'
+                                print (sp ds' p (P 0 0))
                                 sendAll s (showCommandBS cmd)
                                 return ds' 
     Right x -> do putStrLn $ "Non-telemetry message: " ++ show x
